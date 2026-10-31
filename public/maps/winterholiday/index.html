@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <script src="/chronometers/input-bridge.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+  <title>Subway Surfers Map</title>
+  <style>
+    :root{color-scheme:dark;--bg:#070812;--panel:#111326;--line:#262b45;--cyan:#00a8ff;--cyan2:#57d6ff;--muted:#9ca6c2;--pink:#ff4db8}
+    *{box-sizing:border-box}html,body,#game{width:100%;height:100%;margin:0;overflow:hidden;background:var(--bg)}canvas{width:100%!important;height:100%!important;display:block}
+    #loading{position:fixed;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:clamp(18px,5vw,64px);background:radial-gradient(circle at 50% 35%,#161a36 0,#0b0d1c 42%,#05060d 100%);color:#fff;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;transition:opacity .35s,visibility .35s}
+    #loading:before{content:"";position:absolute;inset:0;opacity:.22;background-image:linear-gradient(rgba(0,168,255,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(0,168,255,.12) 1px,transparent 1px);background-size:44px 44px;mask-image:linear-gradient(to bottom,black,transparent 78%);pointer-events:none}
+    #loading.done{opacity:0;visibility:hidden;pointer-events:none}.loader-frame{position:relative;width:min(680px,100%);border:1px solid var(--line);background:linear-gradient(145deg,rgba(17,19,38,.96),rgba(8,9,20,.96));box-shadow:0 24px 80px rgba(0,0,0,.5);padding:clamp(22px,5vw,48px);overflow:hidden}.loader-frame:after{content:"";position:absolute;right:-90px;top:-90px;width:220px;height:220px;border-radius:50%;border:1px solid rgba(0,168,255,.25);box-shadow:0 0 0 28px rgba(0,168,255,.04),0 0 0 56px rgba(0,168,255,.03);pointer-events:none}
+    .loader-kicker{display:flex;justify-content:space-between;gap:12px;color:var(--cyan2);font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}.loader-kicker span:last-child{color:var(--muted)}.loader-rule{height:1px;background:linear-gradient(90deg,var(--cyan),transparent);margin:20px 0 28px}.loader-title{font-size:clamp(32px,8vw,72px);line-height:.95;letter-spacing:.02em;font-weight:800;text-transform:uppercase;margin:0}.loader-subtitle{margin:16px 0 0;color:var(--muted);font-size:clamp(13px,2vw,16px);letter-spacing:.08em;text-transform:uppercase}.loader-status{display:flex;align-items:center;gap:10px;margin-top:38px;color:#e9efff;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.loader-status i{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 16px var(--cyan);animation:pulse 1.2s infinite}.loader-status.error{color:#ff8bcf}.loader-status.error i{background:var(--pink);box-shadow:0 0 16px var(--pink);animation:none}.track{height:10px;margin-top:13px;background:#242940;border:1px solid #303653;overflow:hidden}.fill{width:0;height:100%;background:linear-gradient(90deg,var(--cyan),var(--cyan2));box-shadow:0 0 20px rgba(0,168,255,.55);transition:width .15s}.percent{margin-top:9px;color:#d9e5ff;font-size:12px;text-align:right;font-variant-numeric:tabular-nums}.loader-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:28px}.loader-meta{border-top:1px solid var(--line);padding-top:10px;color:var(--muted);font-size:10px;letter-spacing:.1em;text-transform:uppercase}.loader-meta strong{display:block;color:#fff;font-size:12px;letter-spacing:.04em;margin-top:5px}.loader-error{display:none;margin-top:18px;padding:12px;border:1px solid rgba(255,77,184,.35);background:rgba(255,77,184,.08);color:#ffd5ed;font-size:12px;line-height:1.45}.loader-error.show{display:block}.retry{display:none;margin-top:14px;border:1px solid var(--cyan);background:transparent;color:#fff;padding:10px 14px;cursor:pointer;font-weight:700;letter-spacing:.1em;text-transform:uppercase}.retry.show{display:inline-block}@keyframes pulse{50%{opacity:.35;transform:scale(.75)}}@media(max-width:520px){.loader-frame{padding:24px 20px}.loader-grid{grid-template-columns:1fr 1fr}.loader-meta:last-child{grid-column:1/-1}}
+
+
+</style>
+  <script src="./4399.z.js?v=surfvt14-6"></script>
+  <script src="./UnityLoader.2019.2.js?v=surfvt14-4"></script>
+  <script src="/chronometers/save-bootstrap.js"></script>
+</head>
+<body>
+  <div id="game"></div>
+  <div id="loading"><div class="loader-frame"><div class="loader-kicker"><span>MAP LOADER</span><span>MAP LOADER</span></div><div class="loader-rule"></div><h1 class="loader-title">WINTERHOLIDAY</h1><p id="mode" class="loader-subtitle"></p><div id="status" class="loader-status"><i></i><span>CARREGANDO ARQUIVOS</span></div><div class="track"><div id="fill" class="fill"></div></div><div id="percent" class="percent">0%</div><div class="loader-grid"><div class="loader-meta">BUILD<strong>WORLD TOUR</strong></div><div class="loader-meta">DEVICE<strong id="device">DETECTANDO</strong></div><div class="loader-meta">WEBGL<strong id="webgl">ANALISANDO</strong></div></div><div id="error" class="loader-error"></div><button id="retry" class="retry" type="button">TENTAR NOVAMENTE</button></div></div>
+
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var configPath = './build/winterholiday/winterholiday.alt.json';
+      var isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 900);
+      var modeName = 'Winter Holiday · Build original';
+      document.getElementById('mode').textContent = modeName;
+      window.__surfVT14 = { map: 'Winter Holiday', version: '2019.4.18f1' };
+      function announce(type, extra) { try { parent.postMessage(Object.assign({ type: type, map: 'winterholiday' }, extra || {}), '*'); } catch (e) {} }
+      function noResult() { return Promise.resolve(); }
+
+      // Atalhos inspirados no WASD.ahk enviado: W/A/S/D viram as quatro setas
+      // antes de chegar ao canvas Unity. As setas nativas continuam funcionando.
+      // Physical keyboard and touch messages are handled by input-bridge.js.
+
+      // ---- Ponte Poki -> Unity -------------------------------------------------
+      // O build original usa o Poki SDK para liberar a inicialização do jogo.
+      // Mesmo em modo local/offline, o Unity precisa receber o sinal "ready"
+      // depois que initPokiBridge() for chamado. Sem isso o jogo pode ficar preso
+      // na tela de dica/loading mesmo com os arquivos WebGL já baixados.
+      var bridgeName = null;
+      var BRIDGE_FALLBACKS = ['PokiUnitySDK', 'PokiSDK'];
+      var pokiReady = false;
+
+      function sendToUnity(method, arg) {
+        var inst = window.unityInstance;
+        if (!inst || typeof inst.SendMessage !== 'function') return false;
+        var targets = bridgeName ? [bridgeName] : BRIDGE_FALLBACKS;
+        var sent = false;
+        targets.forEach(function (target) {
+          try {
+            if (arg === undefined) inst.SendMessage(target, method);
+            else inst.SendMessage(target, method, arg);
+            sent = true;
+          } catch (e) { /* GameObject alternativo pode não existir. */ }
+        });
+        return sent;
+      }
+
+      function notifyPokiReady() {
+        if (!pokiReady || !bridgeName) return;
+        // É o callback usado pelo Poki/Unity original.
+        // The build registers its actual scene GameObject here, including the
+        // original age/consent screen. Waiting for mainMenu would block that UI.
+        if (sendToUnity('ready')) scheduleStartupReveal();
+      }
+
+      function afterPromise(promiseLike, done) {
+        var called = false;
+        function once(value) {
+          if (called) return;
+          called = true;
+          window.setTimeout(function () { done(value); }, 0);
+        }
+        try { Promise.resolve(promiseLike).then(once, function () { once(false); }); } catch (e) { once(false); }
+      }
+
+
+      // Configurações recebidas do hub: volume, limite de FPS e modo de exibição.
+      window.__surfVT14Settings = window.__surfVT14Settings || {};
+      // A opção UNLOCKED precisa escapar do limite nativo do requestAnimationFrame.
+      // Os modos numéricos continuam respeitando o limite escolhido pelo usuário.
+      // Read the hub settings from the URL before Unity creates its first
+      // animation loop. A postMessage can arrive too late on fast desktop and
+      // mobile loads, so the initial cap must be synchronous.
+      try {
+        var initialHubSettings = params.get('hubSettings');
+        var initialSettings = initialHubSettings ? JSON.parse(initialHubSettings) : {};
+        window.__surfVT14FrameCap = String(initialSettings.fpsCap || 'unlocked');
+      } catch (e) { window.__surfVT14FrameCap = 'unlocked'; }
+      (function installFrameScheduler() {
+        var nativeRAF = window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : null;
+        var nativeCancel = window.cancelAnimationFrame ? window.cancelAnimationFrame.bind(window) : null;
+        function normalizedCap() {
+          var cap = String(window.__surfVT14FrameCap || 'unlocked').toLowerCase();
+          return cap === '30' || cap === '60' || cap === '120' || cap === '240' ? cap : 'unlocked';
+        }
+        window.__surfVT14SetFrameCap = function (cap) {
+          var value = String(cap || 'unlocked').toLowerCase();
+          window.__surfVT14FrameCap = /^(30|60|120|240)$/.test(value) ? value : 'unlocked';
+          document.documentElement.dataset.surfvt14FpsCap = window.__surfVT14FrameCap;
+        };
+        window.requestAnimationFrame = function (callback) {
+          var cap = normalizedCap();
+          if ((cap === 'unlocked' || cap === '60') && nativeRAF) return nativeRAF(callback);
+          var interval = Math.max(1, 1000 / Number(cap) || 16.67);
+          return window.setTimeout(function () { callback(performance.now()); }, interval);
+        };
+        window.cancelAnimationFrame = function (id) {
+          window.clearTimeout(id);
+          if (nativeCancel) nativeCancel(id);
+        };
+        window.__surfVT14SetFrameCap(window.__surfVT14FrameCap);
+      })();
+
+      function applySurfVT14Settings(settings) {
+        settings = settings || {};
+        window.__surfVT14Settings = Object.assign(window.__surfVT14Settings, settings);
+        var volume = Math.max(0, Math.min(100, Number(settings.volume == null ? 100 : settings.volume)));
+        document.documentElement.style.setProperty('--surfvt14-volume', String(volume / 100));
+        window.__surfVT14SetFrameCap ? window.__surfVT14SetFrameCap(settings.fpsCap) : (window.__surfVT14FrameCap = settings.fpsCap || 'unlocked');
+        if (window.unityInstance && typeof window.unityInstance.SendMessage === 'function') {
+          ['AudioListener', 'GameManager', 'PokiUnitySDK'].forEach(function (target) {
+            try { window.unityInstance.SendMessage(target, 'SetVolume', String(volume / 100)); } catch (e) {}
+          });
+        }
+      }
+      window.addEventListener('message', function (event) {
+        if (!event.data) return;
+        if (event.data.type === 'SURFVT14_HUB_SETTINGS') applySurfVT14Settings(event.data.settings);
+        if (event.data.type === 'SURFVT14_FRAME_CAP') { window.__surfVT14SetFrameCap ? window.__surfVT14SetFrameCap(event.data.fpsCap) : (window.__surfVT14FrameCap = event.data.fpsCap || 'unlocked'); }
+      });
+
+      window.initPokiBridge = function (name) {
+        if (name) {
+          bridgeName = String(name);
+          window.pokiBridge = bridgeName;
+          notifyPokiReady();
+        }
+      };
+
+      window.commercialBreak = function () {
+        afterPromise(window.PokiSDK.commercialBreak(), function () {
+          // Nomes usados pelo build original. Mantemos aliases para builds
+          // que usam a grafia antiga.
+          sendToUnity('commercialBreakCompleted');
+          sendToUnity('commercialBreakCallBack');
+          sendToUnity('commercialBreakCallback');
+        });
+      };
+
+      window.rewardedBreak = function () {
+        afterPromise(window.PokiSDK.rewardedBreak(), function (withReward) {
+          var v = withReward ? 'true' : 'false';
+          sendToUnity('rewardedBreakCompleted', v);
+          sendToUnity('rewardedBreakCallBack', v);
+        });
+      };
+
+      window.PokiSDK = {
+        init: function () {
+          pokiReady = true;
+          window.pokiReady = true;
+          notifyPokiReady();
+          return Promise.resolve();
+        },
+        setDebug: function () {},
+        commercialBreak: noResult,
+        customEvent: function (noun, verb) { if (noun === 'mainMenu' && verb === 'interactive') scheduleStartupReveal(); return Promise.resolve(); },
+        destroyAd: function () {},
+        displayAd: function () {},
+        gameInteractive: function () { scheduleStartupReveal(); },
+        gameLoadingFinished: function () { scheduleStartupReveal(); },
+        gameLoadingProgress: function () {},
+        gameLoadingStart: function () {},
+        gameplayStart: function () {},
+        gameplayStop: function () {},
+        happyTime: function () {},
+        rewardedBreak: function () { return Promise.resolve(true); },
+        roundEnd: function () {},
+        roundStart: function () {},
+        setPlayerAge: function () {},
+        togglePlayerAdvertisingConsent: function () {}
+      };
+      window.pokiReady = false;
+      window.pokiAdBlock = false;
+      // O Poki original resolve o init antes de criar o UnityLoader.
+      window.PokiSDK.init();
+
+      window.showUnitywebNoSupport = function () {
+        document.getElementById('mode').textContent = 'Não foi possível iniciar o WebGL';
+      };
+      try { parent.showUnitywebNoSupport = window.showUnitywebNoSupport; } catch (e) {}
+
+      // ---- Armazenamento seguro (pode lançar SecurityError em iframe/3rd-party) ----
+      var saveReloadKey = 'surfvt14-zurich-save-ready';
+      function store(op, key, value) {
+        try {
+          if (op === 'get') return window.sessionStorage.getItem(key);
+          if (op === 'set') window.sessionStorage.setItem(key, value);
+          if (op === 'remove') window.sessionStorage.removeItem(key);
+        } catch (e) {}
+        return null;
+      }
+
+      var announcedReady = false;
+      var watchdogArmed = false;
+      function withTimeout(promise, ms, fallback) {
+        return new Promise(function (resolve) {
+          var timer = window.setTimeout(function () { resolve(fallback); }, ms);
+          promise.then(function (v) { window.clearTimeout(timer); resolve(v); },
+                       function () { window.clearTimeout(timer); resolve(fallback); });
+        });
+      }
+
+      function prepareSave() {
+        return Promise.all([
+          typeof window.applyUnlockAll === 'function' ? window.applyUnlockAll().catch(function () { return { ready: false }; }) : Promise.resolve({ ready: false }),
+          typeof window.applyInfiniteSave === 'function' ? window.applyInfiniteSave().catch(function () { return { ready: false }; }) : Promise.resolve({ ready: false })
+        ]);
+      }
+
+      function fetchWithRetry(url, options, attempts, delay) {
+        attempts = attempts || 3; delay = delay || 500;
+        return fetch(url, options).then(function (response) {
+          if (!response.ok) throw new Error('HTTP ' + response.status);
+          return response;
+        }).catch(function (error) {
+          if (attempts <= 1) throw error;
+          return new Promise(function (resolve) { window.setTimeout(resolve, delay); }).then(function () { return fetchWithRetry(url, options, attempts - 1, Math.min(delay * 2, 2200)); });
+        });
+      }
+
+      function checkBuildFiles() {
+        var configUrl = new URL(configPath, location.href);
+        return fetchWithRetry(configUrl.href, { cache: 'no-store' }, 3, 450).then(function (response) {
+          return response.json();
+        });
+      }
+
+      function webglReport() {
+        var canvas = document.createElement('canvas'), gl2 = null, gl1 = null;
+        try { gl2 = canvas.getContext('webgl2'); } catch (e) {}
+        try { gl1 = canvas.getContext('webgl') || canvas.getContext('experimental-webgl'); } catch (e) {}
+        return { webgl: gl2 ? 'WEBGL 2' : (gl1 ? 'WEBGL 1' : 'INDISPONÍVEL'), wasm: typeof WebAssembly !== 'undefined', mobile: isMobile };
+      }
+      function setStatus(label, error) {
+        var status = document.getElementById('status');
+        if (!status) return;
+        status.className = 'loader-status' + (error ? ' error' : '');
+        status.querySelector('span').textContent = label;
+      }
+      function reportBuildError(error) {
+        var info = webglReport();
+        var message = error && error.message ? error.message : String(error || 'Falha desconhecida no UnityLoader');
+        console.error('[surfvt14] ' + message, info);
+        setStatus('FALHA AO INICIAR', true);
+        document.getElementById('error').textContent = message + ' · ' + info.webgl + ' · WASM ' + (info.wasm ? 'OK' : 'INDISPONÍVEL');
+        document.getElementById('error').classList.add('show');
+        document.getElementById('retry').classList.add('show');
+        announce('SURFVT14_GAME_ERROR', { message: message, diagnostics: info });
+      }
+
+      function revealGame() {
+        if (announcedReady) return;
+        announcedReady = true;
+        document.getElementById('loading').classList.add('done');
+        announce('SURFVT14_GAME_PROGRESS', { progress: 1 });
+        announce('SURFVT14_GAME_READY');
+        try { if (typeof window.scheduleInfiniteSaveRefresh === 'function') window.scheduleInfiniteSaveRefresh(); } catch (e) {}
+      }
+
+      var startupRevealScheduled = false;
+      function scheduleStartupReveal() {
+        if (startupRevealScheduled) return;
+        startupRevealScheduled = true;
+        window.setTimeout(function () {
+          try { finishStartup(); } catch (e) { reportBuildError(e); }
+        }, 350);
+      }
+
+      function finishStartup() {
+        // Readiness comes from the build's SDK lifecycle, never from save writes.
+        // Keep existing saves/unlocks, but do not hold the menu behind their retries.
+        prepareSave().catch(function (error) { console.warn('[surfvt14] Save refresh', error); });
+        revealGame();
+      }
+
+      (function installHubRuntimeBridge() {
+        var enabled = false;
+        try { enabled = window.localStorage.getItem('surfvt14BoardTripleTap') === 'true'; } catch (e) {}
+        window.SurfVT14BoardTripleTap = { isEnabled: function(){ return enabled; }, setEnabled: function(value){ enabled=!!value; try{ window.localStorage.setItem('surfvt14BoardTripleTap', enabled?'true':'false'); }catch(e){} }, getStatus:function(){ return { enabled: enabled, taps: 3 }; } };
+        window.__surfVT14TripleTap = enabled;
+        function applyHubSaturation(level) {
+          var value = level === 'off' ? 1 : level === 'low' ? 1.25 : level === 'medium' ? 1.5 : 1.9;
+          var target = document.getElementById('game') || document.body;
+          target.style.filter = 'saturate(' + value + ')';
+          target.setAttribute('data-surfvt14-saturation', String(level || 'off'));
+        }
+        try { var savedHub = JSON.parse(window.localStorage.getItem('surfvt14-settings') || '{}'); applyHubSaturation(savedHub.saturation || 'off'); } catch (e) { applyHubSaturation('off'); }
+        window.addEventListener('message', function(event) { if (event.data && event.data.type === 'SURFVT14_HUB_SETTINGS') { var cfg = event.data.settings || {}; applyHubSaturation(cfg.saturation || 'off'); if (window.SurfVT14BoardTripleTap) window.SurfVT14BoardTripleTap.setEnabled(!!cfg.hoverboard); } });
+        function requestStorage() { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function(){}); } catch(e){} try { if (typeof window.applyInfiniteSave === 'function') window.applyInfiniteSave(); } catch(e){} }
+        ['pointerdown','touchstart','click','keydown'].forEach(function(type){ window.addEventListener(type, requestStorage, {capture:true, passive:true}); });
+      })();
+      (function installCompatibilityLayer() {
+        var info = webglReport();
+        document.getElementById('device').textContent = info.mobile ? 'MOBILE' : 'DESKTOP';
+        document.getElementById('webgl').textContent = info.webgl;
+        window.showUnitywebNoSupport = function () { console.warn('[surfvt14] UnityLoader compatibility warning', info); };
+        window.addEventListener('error', function (event) { if (event && event.message && /wasm|webgl|unity/i.test(event.message)) reportBuildError(event.message); });
+        window.addEventListener('unhandledrejection', function (event) { var reason = event && event.reason; if (reason) reportBuildError(reason); });
+        if (window.UnityLoader && UnityLoader.Error) UnityLoader.Error.popup = function (error) { reportBuildError(error || 'UnityLoader encontrou um erro'); };
+        if (window.UnityLoader && UnityLoader.SystemInfo) {
+          // The legacy probe can run before the canvas context is attached.
+          // Trust the live context report produced above instead.
+          UnityLoader.compatibilityCheck = function (instance, ok, fail) { info.webgl !== 'INDISPONÍVEL' ? ok() : fail('WebGL indisponível neste navegador'); };
+        }
+        document.getElementById('retry').addEventListener('click', function () {
+          document.getElementById('retry').classList.remove('show');
+          document.getElementById('error').classList.remove('show');
+          document.getElementById('fill').style.width = '0%';
+          document.getElementById('percent').textContent = '0%';
+          setStatus('TENTANDO NOVAMENTE', false);
+          location.reload();
+        });
+      })();
+      function startUnity() {
+        setStatus('CARREGANDO ARQUIVOS', false);
+        withTimeout(window.__SURFVT14_SAVE_READY_PROMISE || prepareSave(), 9000, [{ ready: false }]).then(function () {
+          return withTimeout(checkBuildFiles(), 12000, null);
+        }).then(function (manifest) {
+          if (!manifest) throw new Error('Tempo esgotado ao carregar o manifesto Unity');
+          setStatus('INICIANDO UNITY', false);
+          var wasmUrl = new URL(manifest.wasmCodeUrl, new URL(configPath, location.href)).href;
+          return fetchWithRetry(wasmUrl, { cache: 'no-store' }, 3, 700).then(function (response) {
+            return response.arrayBuffer();
+          }).then(function (wasmBinary) {
+            window.unityGame = window.unityInstance = UnityLoader.instantiate('game', configPath, {
+            Module: { wasmBinary: wasmBinary, wasmTableSize: 125739, instantiateWasm: function (imports, receive) { WebAssembly.instantiate(wasmBinary, imports).then(function (result) { receive(result.instance, result.module); }).catch(function (error) { reportBuildError(error); }); return {}; }, onRuntimeInitialized: function () { setStatus('PREPARANDO A PISTA', false); } },
+            onProgress: function (_, value) {
+              var raw = Number(value) || 0;
+              var progress = Math.max(0, Math.min(1, raw > 1 ? raw / 100 : raw));
+              document.getElementById('fill').style.width = Math.round(progress * 100) + '%';
+              document.getElementById('percent').textContent = Math.round(progress * 100) + '%';
+              announce('SURFVT14_GAME_PROGRESS', { progress: progress });
+              if (progress >= 1) setStatus('AGUARDANDO O MENU DO JOGO', false);
+            },
+            onsuccess: function () { setStatus('AGUARDANDO O MENU DO JOGO', false); },
+            onerror: reportBuildError
+            });
+            window.setTimeout(function () {
+              if (!announcedReady) reportBuildError(new Error('Unity não confirmou o menu pelo SDK em 90 segundos. Verifique o console e tente novamente.'));
+            }, 90000);
+          });
+        }).catch(reportBuildError);
+      }
+
+      startUnity();
+
+      addEventListener('message', function (event) {
+        if (event.source === parent && event.origin === location.origin && event.data && event.data.type === 'SURFVT14_GAME_INFO' && announcedReady) announce('SURFVT14_GAME_READY');
+      });
+    })();
+  </script>
+
+</body>
+</html>

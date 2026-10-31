@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Subway Crackers · SurfVT14</title>
+  <link rel="shortcut icon" href="favicon.png">
+  <link rel="stylesheet" href="TemplateData/style.css">
+<style id="surfvt14-aspect-fix">
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#231f20;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#unity-container{position:fixed;inset:0;width:100vw;height:100dvh;display:flex;align-items:center;justify-content:center;background:#231f20;overflow:hidden;touch-action:none}
+#unity-canvas{display:block;width:min(100vw,177.7777778dvh) !important;height:min(100dvh,56.25vw) !important;max-width:100vw !important;max-height:100dvh !important;aspect-ratio:16/9;object-fit:contain;touch-action:none;outline:none}
+@supports not (height:100dvh){#unity-container{height:100vh}#unity-canvas{width:min(100vw,177.7777778vh) !important;height:min(100vh,56.25vw) !important;max-height:100vh !important}}
+@media (orientation:portrait){#unity-container{padding-bottom:env(safe-area-inset-bottom);padding-top:env(safe-area-inset-top)}}
+</style>
+</head>
+
+<body class="dark">
+    <script>
+(function(){
+  var key='surfvt14-subwaycracker-clean-v10';
+  if(!localStorage.getItem(key)){
+    try{indexedDB.deleteDatabase('/idbfs');indexedDB.deleteDatabase('UnityCache')}catch(e){}
+    localStorage.setItem(key,'1');
+  }
+})();
+</script>
+
+  <div id="unity-container" class="unity-desktop">
+    <canvas id="unity-canvas"></canvas>
+  </div>
+  <div id="surfvt14-load-error" role="alert" style="display:none;position:fixed;z-index:20;inset:auto 12px 12px;padding:14px;background:#3b1010;color:#fff;border:1px solid #f66;font:14px system-ui;white-space:pre-wrap"></div>
+  <div id="loading-cover" style="display:none;">
+    <div id="unity-loading-bar">
+      <canvas id="logo-canvas" style="position: absolute; background-color: black;">
+        <img src="loading.png?v=1" id="ld_bg">
+        <img src="loading_bg.png" id="ld_bar">
+        <img src="loading_fill.png" id="ld_fill">
+        <img src="loading_mask.png" id="ld_mask">
+      </canvas>
+    </div>
+  </div>
+  <script type="text/javascript">
+    const container = document.querySelector("#unity-container");
+    const canvas = document.querySelector("#unity-canvas");
+    const loadingCover = document.querySelector("#loading-cover");
+    const fullscreenButton = document.querySelector("#unity-fullscreen-button");
+
+
+
+    const buildUrl = "Build";
+    const loaderUrl = buildUrl + "/SubwayCracker.loader.js";
+    const config = {
+      dataUrl: buildUrl + "/SubwayCracker.data?v=tip18",
+      frameworkUrl: buildUrl + "/SubwayCracker.framework.js?v=surfvt14-firebase-optional-1",
+      codeUrl: buildUrl + "/SubwayCracker.wasm?v=tip18",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "GoodMedia",
+      productName: "Subway Crackers",
+      productVersion: "surfvt.lovable.app",
+    };
+
+
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      container.className = "unity-mobile";
+      config.devicePixelRatio = 1;
+    }
+
+    loadingCover.style.display = "";
+
+    var script = document.createElement("script");
+    script.src = loaderUrl;
+    script.onload = () => {
+      createUnityInstance(canvas, config, (progress) => {
+        //progressBarEmpty.style.display = "";
+        //progressBarFull.style.width = `${100 * progress}%`;
+        // console.log(progress);
+        drawCanvas(progress);
+      }).then((unityInstance) => {
+        window.unityInstance = unityInstance;
+        resizeUnityCanvas();
+        focusUnityCanvas();
+        try { parent.postMessage({ type: 'SURFVT14_GAME_READY', map: 'subwaycrackers', mobile: /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) }, '*'); } catch (e) {}
+        setTimeout(() => {
+          loadingCover.style.display = "none";
+          logo_loaded = true;
+        }, 2000);
+      }).catch((message) => {
+        var detail = message && message.message ? message.message : String(message || 'Falha desconhecida ao iniciar o jogo.');
+        console.error('[Subway Crackers] Falha ao iniciar Unity:', detail);
+        var panel = document.getElementById('surfvt14-load-error');
+        panel.textContent = 'Não foi possível iniciar o Subway Crackers.\n' + detail + '\nRecarregue a página e tente novamente.';
+        panel.style.display = 'block';
+        try { parent.postMessage({ type: 'SURFVT14_GAME_ERROR', map: 'subwaycrackers', message: detail }, location.origin); } catch (e) {}
+      });
+    };
+
+    // setTimeout(() => {
+    //     var progress = 0.5;
+    //     logo_loading_percent = progress;
+    //     drawCanvas(progress);
+    //   }, 1000);
+
+    // var progress = 0;
+    // setInterval(() => {
+    //   logo_loading_percent = progress;
+    //   drawCanvas(progress);
+    //   progress += 0.01;
+    // }, 30);
+
+
+    var logo_loaded = false;
+    var logo_loading_percent = 0;
+
+    function resizeUnityCanvas() {
+      var isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || navigator.maxTouchPoints > 0;
+      var w = Math.max(1, window.innerWidth || document.documentElement.clientWidth);
+      var h = Math.max(1, window.innerHeight || document.documentElement.clientHeight);
+      var ratio = 16 / 9;
+      var width = Math.min(w, h * ratio);
+      var height = width / ratio;
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      canvas.style.touchAction = 'none';
+      if (isMobile) {
+        canvas.style.maxWidth = '100vw';
+        canvas.style.maxHeight = '100vh';
+      }
+    }
+    function focusUnityCanvas() {
+      try { canvas.tabIndex = 0; canvas.focus({ preventScroll: true }); } catch (e) { try { canvas.focus(); } catch (ignored) {} }
+      try { if (window.unityInstance && window.unityInstance.Module && window.unityInstance.Module.canvas) window.unityInstance.Module.canvas.focus(); } catch (e) {}
+    }
+    ['pointerdown','pointerup','touchstart','touchend','click'].forEach(function(type) {
+      document.addEventListener(type, function(event) {
+        if (event.target === canvas || event.target === document.body || event.target === container) {
+          focusUnityCanvas();
+          if (type === 'touchstart' || type === 'pointerdown') {
+            try { event.preventDefault(); } catch (e) {}
+          }
+        }
+      }, { capture: true, passive: false });
+    });
+    window.addEventListener('orientationchange', function() { window.setTimeout(resizeUnityCanvas, 120); });
+    window.visualViewport && window.visualViewport.addEventListener('resize', resizeUnityCanvas);
+    resizeUnityCanvas();
+    window.onresize = () => {
+      resizeUnityCanvas();
+      drawCanvas(logo_loading_percent);
+    }
+    window.onload = () => {
+      drawCanvas(logo_loading_percent);
+    }
+
+    var logo_canvas = document.getElementById("logo-canvas");
+    function drawCanvas(_percent = 0) {
+      if (logo_loaded) {
+        return;
+      }
+      resizeLogoCanvas();
+      var ctx = logo_canvas.getContext("2d");
+      var ld_bg = document.getElementById("ld_bg");
+      var ld_bar = document.getElementById("ld_bar");
+      var ld_fill = document.getElementById("ld_fill");
+      var ld_mask = document.getElementById("ld_mask");
+      var _sw = logo_canvas.width / 1920;
+      var _sh = logo_canvas.height / 1080;
+
+      if (_percent > 1) {
+        _percent = 1;
+      }
+
+      var pl = 1320 * _percent;
+      var pw = 1320 - pl;
+      pl = pl + 300;
+
+      // console.log(`${logo_canvas.width} ${logo_canvas.height}`);
+      ctx.drawImage(ld_bg, 0, 0, logo_canvas.width, logo_canvas.height);
+      ctx.drawImage(ld_bar, 298 * _sw, logo_canvas.height - (98 * _sh), 1324 * _sw, 73 * _sh);
+      ctx.drawImage(ld_fill, pl * _sw, logo_canvas.height - (96 * _sh), pw * _sw, 67 * _sh);
+      ctx.drawImage(ld_mask, 298 * _sw, logo_canvas.height - (98 * _sh), 1324 * _sw, 74 * _sh);
+    }
+    function resizeLogoCanvas() {
+      var _w = window.innerWidth;
+      var _h = window.innerHeight;
+      var _nw = _h * 16 / 9;
+      // console.log(`${_w} ${_h} ${_nw}`);
+      if (_nw <= _w) {
+        logo_canvas.width = _nw;
+        logo_canvas.height = _h;
+      }
+      else {
+        logo_canvas.width = _w;
+        logo_canvas.height = _w * 9 / 16;
+      }
+    }
+
+
+    document.body.appendChild(script);
+  </script>
+
+<script>
+(function(){
+  'use strict';
+  var params=new URLSearchParams(location.search),settings={};try{settings=JSON.parse(params.get('hubSettings')||'{}')}catch(e){}
+  var movement={w:'ArrowUp',a:'ArrowLeft',s:'ArrowDown',d:'ArrowRight'};
+  if(settings.controls==='IJKL')movement={i:'ArrowUp',j:'ArrowLeft',k:'ArrowDown',l:'ArrowRight'};
+  if(settings.controls==='SETAS')movement={arrowup:'ArrowUp',arrowleft:'ArrowLeft',arrowdown:'ArrowDown',arrowright:'ArrowRight'};
+  if(settings.controls==='PERSONALIZADO'){var c=settings.customControls||{};movement={};movement[String(c.up||'T').toLowerCase()]='ArrowUp';movement[String(c.left||'F').toLowerCase()]='ArrowLeft';movement[String(c.down||'G').toLowerCase()]='ArrowDown';movement[String(c.right||'H').toLowerCase()]='ArrowRight'}
+  var codes={ArrowUp:38,ArrowLeft:37,ArrowDown:40,ArrowRight:39};
+  function norm(k){return ({'↑':'arrowup','←':'arrowleft','↓':'arrowdown','→':'arrowright'})[String(k)]||String(k).toLowerCase()}
+  function send(k,type,repeat){var e=new KeyboardEvent(type||'keydown',{key:k,code:k,bubbles:true,cancelable:true,composed:true,repeat:!!repeat});try{Object.defineProperty(e,'keyCode',{value:codes[k]||0});Object.defineProperty(e,'which',{value:codes[k]||0})}catch(x){}var c=document.querySelector('#unity-canvas');if(c){c.focus();c.dispatchEvent(e)}else{document.dispatchEvent(e)}}
+  function key(e){var m=movement[norm(e.key)];if(!m)return;e.preventDefault();e.stopImmediatePropagation();send(m,e.type,e.repeat)}
+  window.addEventListener('keydown',key,true);window.addEventListener('keyup',key,true);
+  window.addEventListener('message',function(e){if(e.source!==parent||e.origin!==location.origin)return;var d=e.data||{};if(d.type==='SURFVT14_KEY')send(d.key,d.eventType,d.repeat)});
+  var last=0,t=setInterval(function(){if(window.unityInstance&&window.unityInstance!==last){last=window.unityInstance;try{parent.postMessage({type:'SURFVT14_GAME_READY',map:'subwaycrackers'},'*')}catch(e){}clearInterval(t)}},500);
+})();
+</script>
+</body>
+
+</html>
