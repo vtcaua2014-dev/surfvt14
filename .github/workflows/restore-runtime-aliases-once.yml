@@ -1,0 +1,60 @@
+name: Restore exact SurfVT WebAssembly aliases
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/restore-runtime-aliases-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Restore exact binaries referenced by SurfVT manifests
+        run: |
+          python3 - <<'PY'
+          import hashlib, pathlib, urllib.request
+
+          assets = [
+              ("https://surfvt14.vercel.app/maps-shared/zurich.wasm.code.unityweb",
+               "public/maps-shared/zurich.wasm.code.unityweb",
+               "6824f0be1817ed6bd2144ac2e55e49b3c2f8f848"),
+              ("https://surfvt14.vercel.app/maps/venice/build/venice/venice.wasm.code.unityweb",
+               "public/maps/venice/build/venice/venice.wasm.code.unityweb",
+               "28872ddcc7528213d00ec5af8880609070048ca4"),
+              ("https://surfvt14.vercel.app/maps/venice/build/venice/venice.wasm.framework.unityweb",
+               "public/maps/venice/build/venice/venice.wasm.framework.unityweb",
+               "4c06839baaa8a1faabd94a0b42fd1e0f826d230c"),
+          ]
+          total = 0
+          for url, dest, expected in assets:
+              request = urllib.request.Request(url, headers={"User-Agent": "surfvt14-runtime-restore"})
+              with urllib.request.urlopen(request, timeout=180) as response:
+                  payload = response.read()
+              header = f"blob {len(payload)}\\0".encode()
+              actual = hashlib.sha1(header + payload).hexdigest()
+              if actual != expected:
+                  raise RuntimeError(f"unexpected Git blob hash for {dest}: {actual}")
+              path = pathlib.Path(dest)
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_bytes(payload)
+              total += len(payload)
+              print(f"restored {dest} ({len(payload)} bytes; hash verified)")
+          workflow = pathlib.Path(".github/workflows/restore-runtime-aliases-once.yml")
+          workflow.unlink(missing_ok=True)
+          print(f"restored {len(assets)} aliases, {total} bytes; removed temporary workflow")
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Restore exact SurfVT runtime aliases"
+          git push origin HEAD:main
