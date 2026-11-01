@@ -39,7 +39,7 @@ jobs:
               request = urllib.request.Request(url, headers={"User-Agent": "surfvt14-runtime-restore"})
               with urllib.request.urlopen(request, timeout=180) as response:
                   payload = response.read()
-              header = f"blob {len(payload)}\\0".encode()
+              header = b"blob " + str(len(payload)).encode() + bytes((0,))
               actual = hashlib.sha1(header + payload).hexdigest()
               if actual != expected:
                   raise RuntimeError(f"unexpected Git blob hash for {dest}: {actual}")
