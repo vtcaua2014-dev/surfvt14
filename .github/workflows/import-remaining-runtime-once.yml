@@ -1,0 +1,126 @@
+name: Import remaining SurfVT runtimes once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/import-remaining-runtime-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  import-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Download and verify missing runtime assets
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import os
+          import pathlib
+          import subprocess
+          import tempfile
+          import urllib.request
+
+          surfvt_assets = {
+              "public/map-icons/ashuni/paris.png": ("8309ee2e68ef6b695c168949346bfe5d7a0f63d7", 1054750),
+              "public/maps/bangkok/build/bangkok/bangkok.alt.asm.code.unityweb": ("071a5933c5c7e179095384d129fb94c452c81b8d", 55506004),
+              "public/maps/bangkok/build/bangkok/bangkok.alt.asm.memory.unityweb": ("344c614402c7c05ac8f98be9774eb2f4c2b2cd25", 2703503),
+              "public/maps/bangkok/build/bangkok/bangkok.alt.data.unityweb": ("f52be6112e7e038452e9438e27b18d73a7b3b1a0", 86709716),
+              "public/maps/bangkok/build/bangkok/bangkok.alt.wasm.code.unityweb": ("a6fd6e3e451abff15db982f23e4e2b6195ec3f2e", 21970088),
+              "public/maps/newyork/build/newyork/newyork.wasm.code.unityweb": ("adb3b2e46279fe2262b951d0c6dc26de23534f4c", 26477341),
+              "public/maps/paris/build/paris/paris.alt.asm.code.unityweb": ("622bbf66c504b82639e049047e8b06c862390449", 45282277),
+              "public/maps/paris/build/paris/paris.alt.asm.memory.unityweb": ("3edf132357cbdb718e45c4c945b468cc1b1ffa9e", 3571711),
+              "public/maps/subwaycrackers/Build/SubwayCracker.data": ("8f9eb8a70b3b4e594a9142e878c5a973b94a560b", 73910679),
+              "public/maps/subwaycrackers/Build/SubwayCracker.wasm": ("c6bcee27362b8c80a34f7e5a8673a3df1d6c9b8c", 34279489),
+              "public/maps/subwaycrackers/loading.png": ("86ec1d173ddd8b6b36f807d1c820e06d3dc3f41a", 2418254),
+              "public/maps/venice-normal/build/venice/venice.alt.data.unityweb": ("e3d5357c47ebd327937066708eb4b2fabaeccf03", 58706622),
+              "public/moggers/IMAGEMOG.png": ("21d2de6affead8b8f2eeb45db179e899c1cba4c1", 1693804),
+          }
+
+          bangkok_2018 = {
+              "bangkok.alt.asm.code.unityweb": ("071a5933c5c7e179095384d129fb94c452c81b8d", 55506004),
+              "bangkok.alt.asm.framework.unityweb": ("7a293e03b0487574f88942a63615289ba95ee2cd", 444238),
+              "bangkok.alt.asm.memory.unityweb": ("344c614402c7c05ac8f98be9774eb2f4c2b2cd25", 2703503),
+              "bangkok.alt.data.unityweb": ("ecaf7a685094c8e73513158c7e38a191dc57d2de", 86723068),
+              "bangkok.alt.json": ("21a758200f8e49993a996a2dfb92d93ac0352950", 908),
+              "bangkok.alt.wasm.code.unityweb": ("a6fd6e3e451abff15db982f23e4e2b6195ec3f2e", 21970088),
+              "bangkok.alt.wasm.framework.unityweb": ("197ef3905bc17d4fef16d5cd78afb45314c4f8da", 426008),
+          }
+
+          src_commit = "eb8845d7127e876d31caa9be69ff6e071e497f0b"
+          dest_dir = pathlib.Path("public/imported-builds/therealoness-builds-3/bangkok-unity-2018")
+          jobs = []
+          for path, (sha, size) in surfvt_assets.items():
+              if path.lower().find("training") >= 0 or "/test" in path.lower():
+                  raise SystemExit(f"Refusing excluded training/test path: {path}")
+              jobs.append((path, f"https://surfvt14.vercel.app/{path.removeprefix('public/')}", sha, size))
+          for filename, (sha, size) in bangkok_2018.items():
+              src = f"game-assets/builds/bangkok/{filename}"
+              if any(word in src.lower() for word in ("training", "only1row", "only3rows", "patches")):
+                  raise SystemExit(f"Refusing excluded training asset: {src}")
+              url = f"https://raw.githubusercontent.com/tavvkkj/therealoness-builds-3/{src_commit}/{src}"
+              jobs.append((str(dest_dir / filename), url, sha, size))
+
+          added = []
+          for relpath, url, expected_sha, expected_size in jobs:
+              target = pathlib.Path(relpath)
+              if target.exists():
+                  raise SystemExit(f"Refusing to overwrite existing path: {relpath}")
+              target.parent.mkdir(parents=True, exist_ok=True)
+              req = urllib.request.Request(url, headers={"User-Agent": "SurfVT14-asset-import"})
+              digest = hashlib.sha1()
+              digest.update(f"blob {expected_size}".encode("ascii") + bytes([0]))
+              total = 0
+              fd, temp_name = tempfile.mkstemp(dir=str(target.parent))
+              try:
+                  with os.fdopen(fd, "wb") as out, urllib.request.urlopen(req, timeout=240) as response:
+                      while True:
+                          chunk = response.read(1024 * 1024)
+                          if not chunk:
+                              break
+                          total += len(chunk)
+                          if total > expected_size:
+                              raise SystemExit(f"Downloaded more bytes than expected for {relpath}")
+                          digest.update(chunk)
+                          out.write(chunk)
+                  if total != expected_size:
+                      raise SystemExit(f"Size mismatch for {relpath}: {total} != {expected_size}")
+                  actual_sha = digest.hexdigest()
+                  if actual_sha != expected_sha:
+                      raise SystemExit(f"Git blob SHA mismatch for {relpath}: {actual_sha} != {expected_sha}")
+                  os.replace(temp_name, target)
+              finally:
+                  if os.path.exists(temp_name):
+                      os.unlink(temp_name)
+              print(f"VERIFIED {relpath} ({total} bytes, {actual_sha})")
+              added.append(relpath)
+
+          readme = dest_dir / "README.md"
+          readme.write_text(
+              "# Bangkok Unity 2018 runtime (isolated)\n\n"
+              "Imported from therealoness-builds-3 at commit " + src_commit + ". "
+              "The manifest identifies Unity 2018.4.36f1. These files are kept separate "
+              "from the site's active Bangkok runtime (Unity 5.6.3p1); they are included "
+              "as requested but are not wired into the live map because the runtimes are incompatible.\n",
+              encoding="utf-8",
+          )
+          added.append(str(readme))
+
+          workflow = pathlib.Path(".github/workflows/import-remaining-runtime-once.yml")
+          workflow.unlink()
+          subprocess.run(["git", "config", "user.name", "github-actions[bot]"], check=True)
+          subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
+          subprocess.run(["git", "add", "--all", "public", ".github/workflows/import-remaining-runtime-once.yml"], check=True)
+          subprocess.run(["git", "commit", "-m", "Add missing game runtimes and isolated Bangkok 2018 build"], check=True)
+          subprocess.run(["git", "push", "origin", "HEAD:main"], check=True)
+          print(f"Published {len(added)} verified files.")
+          PY
